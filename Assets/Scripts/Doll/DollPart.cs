@@ -1,22 +1,19 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
 [RequireComponent(typeof(Renderer))]
 public class DollPart : MonoBehaviour
 {
-    [SerializeField] private Material _materialToChange;
+    [SerializeField] private Material _material;
 
-    private Vector3 _lastPosition;
-    private Transform _target;
-    private Chain _chain;
+    private float _speed = 4f;
+    private float _offsetSpeed = 10000f;
+
     private Renderer _renderer;
-    private bool _isInChain;
 
-    public Chain Chain => _chain;
-    public bool IsInChain => _isInChain;
-    public Vector3 LastPosition => _lastPosition;
-    public Transform Target => _target;
+    public event UnityAction<DollPart> Captured;
 
     private void Start()
     {
@@ -25,46 +22,32 @@ public class DollPart : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.TryGetComponent(out DollPart dollPart))
+        if (other.TryGetComponent(out Water water))
+            _renderer.material = _material;
+
+        if (other.TryGetComponent(out Collecteble collecteble))
         {
-            if (dollPart.IsInChain == false)
-            {
-                dollPart.SetChain(_chain);
-                dollPart.ChangeState(true);
-            }
+            if (collecteble.TryCollect(out DollPart dollPart))
+                Captured?.Invoke(dollPart);
         }
     }
 
-    public void Move(float speed)
+    private IEnumerator Move(Transform previousPart)
     {
-        if (_target != null && _target.transform.position != _lastPosition)
+        while(true)
         {
-            //наша движение к таргету по X(иксу)
-            //transform.Translate(speed * Time.deltaTime * _target.position.x, 0, _target.position.z + 0.5f);
-            transform.position = Vector3.Lerp(transform.position, _lastPosition, speed * Time.deltaTime);
-            _lastPosition = _target.transform.position;
+            float x = Mathf.Lerp(transform.position.x, previousPart.position.x, _offsetSpeed * Time.deltaTime);
+            x -= transform.position.x;
+            //Debug.Log(x);
+            transform.Translate((transform.forward + new Vector3(x, 0, 0)) * _speed * Time.deltaTime);
+            yield return null;
         }
     }
 
-    public void SetTarget(Transform target)
+    public void Init(Transform lastPart, Material material)
     {
-        _target = target;
-        _lastPosition = target.position;
-    }
+        _material = material;
 
-    public void SetChain(Chain chain)
-    {
-        _chain = chain;
-        _chain.AddToChain(this);
-    }
-
-    public void ChangeState(bool flag)
-    {
-        _isInChain = flag;
-    }
-
-    public void ChangeMaterial()
-    {
-        _renderer.material = _materialToChange;
+        StartCoroutine(Move(lastPart));
     }
 }

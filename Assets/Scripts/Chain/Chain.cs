@@ -1,45 +1,44 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Chain : MonoBehaviour
 {
-    [SerializeField] private DollPart _startDollPart;
-    [SerializeField] private float _stepSize;
+    [SerializeField] private DollPart _first;
+    [SerializeField] private Material _water;
+    [SerializeField] private float _offset;
 
+    private Transform _lastPart;
+    private List<DollPart> _parts = new List<DollPart>();
     private Vector3 _lastPosition;
-    private Transform _currentTarget;
-    private List<Transform> _dollParts = new List<Transform>();
-    private float _offset;
 
     private void Start()
     {
-        _currentTarget = _startDollPart.transform;
+        _lastPart = _first.transform;
 
-        _lastPosition = _startDollPart.transform.position;
+        _lastPosition = _lastPart.position;
 
-        _startDollPart.ChangeState(true);
-        _startDollPart.SetChain(this);
-
-        _offset = _startDollPart.transform.localScale.x / _stepSize;
+        Add(_first);
     }
 
-    public void AddToChain(DollPart dollPart)
+    private void OnDisable()
     {
-        _dollParts.Add(dollPart.transform);
+        foreach (var part in _parts)
+            part.Captured -= Add;
+    }
 
-        SetNextPosition();
+    public void Add(DollPart dollPart)
+    {
+        _parts.Add(dollPart);
 
-        dollPart.SetTarget(_currentTarget);
+        dollPart.Captured += Add;
 
-        _currentTarget = _dollParts[_dollParts.Count - 1];
+        _lastPosition = CalculateNextPosition();
+        dollPart.Init(_lastPart, _water);
 
+        _lastPart = _parts[_parts.Count - 1].transform;
         dollPart.transform.position = _lastPosition;
-        //dollPart.transform.SetParent(transform);
     }
 
-    private void SetNextPosition()
-    {
-        _lastPosition = new Vector3(_dollParts[_dollParts.Count - 1].transform.position.x, _lastPosition.y, _dollParts[_dollParts.Count - 1].transform.position.z + _offset);
-    }
+    private Vector3 CalculateNextPosition()
+        => new Vector3(_parts[_parts.Count - 1].transform.position.x, _lastPosition.y, _parts[_parts.Count - 1].transform.position.z + _offset);
 }
